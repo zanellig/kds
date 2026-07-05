@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${KDS_REPO_URL:-https://github.com/zanellig/kill-dev-servers.git}"
-CLONE_DIR="${KDS_CLONE_DIR:-$HOME/.local/share/kill-dev-servers/repo}"
+REPO_URL="${KDS_REPO_URL:-https://github.com/zanellig/kds.git}"
+CLONE_DIR="${KDS_CLONE_DIR:-$HOME/.local/share/kds/repo}"
 INSTALL_DIR="${KDS_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_PATH="${KDS_BIN_PATH:-$INSTALL_DIR/kds}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"

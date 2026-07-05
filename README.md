@@ -1,6 +1,10 @@
-# kill-dev-servers
+# KDS: Kill Dev Servers
 
-Small Linux shell script to stop local JavaScript dev servers without touching Docker containers or editor processes.
+<p>
+  <img src="assets/kds-readme.png" alt="KDS logo with a masked target face and black KDS text" width="720">
+</p>
+
+KDS is a tiny Linux CLI that safely stops local JavaScript dev servers without touching Docker containers or editor processes.
 
 It scans TCP listeners and stops process groups that look like host development servers:
 
@@ -29,12 +33,12 @@ configuration instead of relying on shell rc file edits.
 Run the installer:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/zanellig/kill-dev-servers/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zanellig/kds/main/install.sh | bash
 ```
 
 The installer:
 
-- clones this repo to `~/.local/share/kill-dev-servers/repo`
+- clones this repo to `~/.local/share/kds/repo`
 - installs `kds` to `~/.local/bin/kds`
 - prompts before reinstalling if `kds` is already installed
 - adds a `kds` alias to existing shell rc files
@@ -45,7 +49,7 @@ You can override paths:
 
 ```sh
 KDS_INSTALL_DIR="$HOME/bin" bash install.sh
-KDS_CLONE_DIR="$HOME/src/kill-dev-servers" bash install.sh
+KDS_CLONE_DIR="$HOME/src/kds" bash install.sh
 ```
 
 For CI, distro packaging, or isolated install tests, skip global agent
@@ -67,9 +71,9 @@ The installer respects common agent/config overrides including `CODEX_HOME`,
 Clone the repo and install the script somewhere on your `PATH`:
 
 ```sh
-git clone https://github.com/zanellig/kill-dev-servers.git
+git clone https://github.com/zanellig/kds.git
 mkdir -p "$HOME/.local/bin"
-cp kill-dev-servers/kill-dev-servers.sh "$HOME/.local/bin/kds"
+cp kds/kill-dev-servers.sh "$HOME/.local/bin/kds"
 chmod +x "$HOME/.local/bin/kds"
 ```
 
