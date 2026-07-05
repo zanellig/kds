@@ -1,6 +1,6 @@
 # kill-dev-servers Agent Instructions
 
-<!-- headroom:kds-instructions -->
+<!-- kds:agent-instructions -->
 # KDS (Kill Dev Servers)
 
 Use `kds` when the user asks to stop, clear, or kill local development servers.
@@ -25,4 +25,4 @@ processes.
 Do not use broad process killers such as `pkill node`, `killall bun`, or
 `pkill -f vite` for this task unless the user explicitly asks for that riskier
 behavior.
-<!-- /headroom:kds-instructions -->
+<!-- /kds:agent-instructions -->
