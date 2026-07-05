@@ -4,7 +4,7 @@
   <img src="assets/kds-readme.png" alt="KDS logo with a masked target face and black KDS text" width="720">
 </p>
 
-KDS is a tiny Linux CLI that safely stops local JavaScript dev servers without touching Docker containers or editor processes.
+KDS is a tiny Linux CLI for cleaning up local JavaScript dev servers that coding agents leave running, without touching Docker containers or editor processes.
 
 It scans TCP listeners and stops process groups that look like host development servers:
 
