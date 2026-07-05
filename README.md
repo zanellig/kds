@@ -6,6 +6,8 @@
 
 KDS is a tiny Linux CLI for cleaning up local JavaScript dev servers that coding agents leave running, without touching Docker containers or editor processes.
 
+It also saves input, output, and reasoning tokens: instead of having an agent discover listeners, choose the right `ss`/`lsof`/`ps`/`kill` commands, and stream process output back into context, a tiny `AGENTS.md` instruction tells it to run `kds`.
+
 It scans TCP listeners and stops process groups that look like host development servers:
 
 - `bun`, `npm`, `pnpm`, or `yarn` running `dev`
@@ -42,7 +44,7 @@ The installer:
 - installs `kds` to `~/.local/bin/kds`
 - prompts before reinstalling if `kds` is already installed
 - adds a `kds` alias to existing shell rc files
-- adds agent instructions to common global instruction files for Codex, Claude Code, OpenCode, Gemini CLI, and generic AGENTS.md-aware tools
+- adds a tiny `kds` instruction to common global instruction files for Codex, Claude Code, OpenCode, Gemini CLI, and generic AGENTS.md-aware tools
 - writes only global/user-level agent instruction files
 
 You can override paths:
