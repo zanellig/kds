@@ -6,6 +6,7 @@ CLONE_DIR="${KDS_CLONE_DIR:-$HOME/.local/share/kill-dev-servers/repo}"
 INSTALL_DIR="${KDS_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_PATH="${KDS_BIN_PATH:-$INSTALL_DIR/kds}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+REINSTALL="${KDS_REINSTALL:-}"
 
 BLOCK_START="<!-- kds:agent-instructions -->"
 BLOCK_END="<!-- /kds:agent-instructions -->"
@@ -18,6 +19,56 @@ say() {
 
 have() {
   command -v "$1" >/dev/null 2>&1
+}
+
+installed_kds_path() {
+  if [[ -e "$BIN_PATH" ]]; then
+    printf '%s\n' "$BIN_PATH"
+    return
+  fi
+
+  command -v kds 2>/dev/null || true
+}
+
+confirm_reinstall_if_needed() {
+  local existing_path
+  local answer
+
+  existing_path="$(installed_kds_path)"
+  [[ -n "$existing_path" ]] || return 0
+
+  case "$REINSTALL" in
+    1|true|TRUE|yes|YES|y|Y)
+      say "Reinstalling existing kds at $existing_path"
+      return
+      ;;
+    0|false|FALSE|no|NO|n|N)
+      say "kds is already installed at $existing_path; leaving it unchanged."
+      exit 0
+      ;;
+  esac
+
+  if [[ -t 0 ]]; then
+    printf 'kds is already installed at %s. Reinstall it? [y/N] ' "$existing_path"
+    IFS= read -r answer || answer=""
+  elif { : </dev/tty; } 2>/dev/null; then
+    printf 'kds is already installed at %s. Reinstall it? [y/N] ' "$existing_path" >/dev/tty
+    IFS= read -r answer </dev/tty || answer=""
+  else
+    say "kds is already installed at $existing_path."
+    say "Re-run with KDS_REINSTALL=1 to reinstall or KDS_REINSTALL=0 to keep the existing install."
+    exit 1
+  fi
+
+  case "$answer" in
+    y|Y|yes|YES)
+      say "Reinstalling existing kds at $existing_path"
+      ;;
+    *)
+      say "Keeping existing kds at $existing_path"
+      exit 0
+      ;;
+  esac
 }
 
 clone_or_update_repo() {
@@ -36,7 +87,7 @@ clone_or_update_repo() {
 }
 
 install_binary() {
-  mkdir -p "$INSTALL_DIR"
+  mkdir -p "$INSTALL_DIR" "$(dirname "$BIN_PATH")"
   cp "$CLONE_DIR/kill-dev-servers.sh" "$BIN_PATH"
   chmod +x "$BIN_PATH"
   say "Installed $BIN_PATH"
@@ -189,6 +240,7 @@ main() {
     exit 1
   fi
 
+  confirm_reinstall_if_needed
   clone_or_update_repo
   install_binary
   install_aliases

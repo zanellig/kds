@@ -25,9 +25,10 @@ The installer:
 
 - clones this repo to `~/.local/share/kill-dev-servers/repo`
 - installs `kds` to `~/.local/bin/kds`
-- adds a `kds` alias to existing shell rc files, including fish
+- prompts before reinstalling if `kds` is already installed
+- adds a `kds` alias to existing shell rc files
 - adds agent instructions to common global instruction files for Codex, Claude Code, OpenCode, Gemini CLI, and generic AGENTS.md-aware tools
-- writes only global/user-level agent instruction files, not per-project files
+- writes only global/user-level agent instruction files
 
 You can override paths:
 
@@ -35,6 +36,10 @@ You can override paths:
 KDS_INSTALL_DIR="$HOME/bin" bash install.sh
 KDS_CLONE_DIR="$HOME/src/kill-dev-servers" bash install.sh
 ```
+
+If `kds` is already installed, the installer asks whether to reinstall it. For
+non-interactive installs, set `KDS_REINSTALL=1` to reinstall or
+`KDS_REINSTALL=0` to keep the existing installation unchanged.
 
 The installer respects common agent/config overrides including `CODEX_HOME`,
 `CLAUDE_CONFIG_DIR`, `OPENCODE_HOME`, and `XDG_CONFIG_HOME`.
