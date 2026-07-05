@@ -1,5 +1,3 @@
-# kill-dev-servers Agent Instructions
-
 <!-- kds:agent-instructions -->
 # KDS (Kill Dev Servers)
 

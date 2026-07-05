@@ -15,6 +15,32 @@ It skips Docker/container-owned processes and actual Electron/Code listener proc
 
 ## Install
 
+Run the installer:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/zanellig/kill-dev-servers/main/install.sh | bash
+```
+
+The installer:
+
+- clones this repo to `~/.local/share/kill-dev-servers/repo`
+- installs `kds` to `~/.local/bin/kds`
+- adds a `kds` alias to existing shell rc files, including fish
+- adds agent instructions to common global instruction files for Codex, Claude Code, OpenCode, Gemini CLI, and generic AGENTS.md-aware tools
+- writes only global/user-level agent instruction files, not per-project files
+
+You can override paths:
+
+```sh
+KDS_INSTALL_DIR="$HOME/bin" bash install.sh
+KDS_CLONE_DIR="$HOME/src/kill-dev-servers" bash install.sh
+```
+
+The installer respects common agent/config overrides including `CODEX_HOME`,
+`CLAUDE_CONFIG_DIR`, `OPENCODE_HOME`, and `XDG_CONFIG_HOME`.
+
+## Manual Install
+
 Clone the repo and install the script somewhere on your `PATH`:
 
 ```sh
