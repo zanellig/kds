@@ -7,6 +7,7 @@ INSTALL_DIR="${KDS_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_PATH="${KDS_BIN_PATH:-$INSTALL_DIR/kds}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 REINSTALL="${KDS_REINSTALL:-}"
+SKIP_AGENT_INSTRUCTIONS="${KDS_SKIP_AGENT_INSTRUCTIONS:-}"
 
 BLOCK_START="<!-- kds:agent-instructions -->"
 BLOCK_END="<!-- /kds:agent-instructions -->"
@@ -244,7 +245,15 @@ main() {
   clone_or_update_repo
   install_binary
   install_aliases
-  install_agent_instructions
+
+  case "$SKIP_AGENT_INSTRUCTIONS" in
+    1|true|TRUE|yes|YES|y|Y)
+      say "Skipping agent instruction updates."
+      ;;
+    *)
+      install_agent_instructions
+      ;;
+  esac
 
   say ""
   say "Done. Try: kds --dry-run"

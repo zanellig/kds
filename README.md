@@ -13,6 +13,17 @@ It scans TCP listeners and stops process groups that look like host development 
 
 It skips Docker/container-owned processes and actual Electron/Code listener processes.
 
+## Requirements
+
+- Linux with `/proc`
+- Bash 4 or newer
+- procps-style `ps`, plus common shell tools such as `sort`, `tr`, and `grep`
+- `ss` from iproute2 or `lsof` for TCP listener discovery
+
+Alpine/BusyBox-style systems and macOS are not currently supported targets.
+For NixOS, install or wrap the runtime dependencies in your Nix/home-manager
+configuration instead of relying on shell rc file edits.
+
 ## Install
 
 Run the installer:
@@ -35,6 +46,13 @@ You can override paths:
 ```sh
 KDS_INSTALL_DIR="$HOME/bin" bash install.sh
 KDS_CLONE_DIR="$HOME/src/kill-dev-servers" bash install.sh
+```
+
+For CI, distro packaging, or isolated install tests, skip global agent
+instruction updates:
+
+```sh
+KDS_SKIP_AGENT_INSTRUCTIONS=1 bash install.sh
 ```
 
 If `kds` is already installed, the installer asks whether to reinstall it. For

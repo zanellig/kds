@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 usage() {
@@ -31,6 +32,10 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
 
 pid_exists() {
   local pid="$1"
@@ -114,27 +119,79 @@ print_match() {
   local pid="$1"
   local pgid="$2"
   local cmd="$3"
+  local mode="${4:-pgid}"
 
   if (( dry_run )); then
-    printf 'would stop: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
+    if [[ "$mode" == "pid" ]]; then
+      printf 'would stop: pid=%s pgid=%s mode=pid cmd=%s\n' "$pid" "$pgid" "$cmd"
+    else
+      printf 'would stop: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
+    fi
   else
-    printf 'stopping: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
+    if [[ "$mode" == "pid" ]]; then
+      printf 'stopping: pid=%s pgid=%s mode=pid cmd=%s\n' "$pid" "$pgid" "$cmd"
+    else
+      printf 'stopping: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
+    fi
   fi
 }
 
-mapfile -t listener_pids < <(
-  lsof -nP -iTCP -sTCP:LISTEN -Fp 2>/dev/null |
-    sed -n 's/^p//p' |
-    sort -u
-)
+discover_listener_pids_with_ss() {
+  local line
+  local rest
+
+  ss -H -ltnp 2>/dev/null | while IFS= read -r line; do
+    rest="$line"
+    while [[ "$rest" =~ pid=([0-9]+) ]]; do
+      printf '%s\n' "${BASH_REMATCH[1]}"
+      rest="${rest#*pid=${BASH_REMATCH[1]}}"
+    done
+  done || true
+}
+
+discover_listener_pids_with_lsof() {
+  local line
+
+  lsof -nP -iTCP -sTCP:LISTEN -Fp 2>/dev/null | while IFS= read -r line; do
+    if [[ "$line" =~ ^p([0-9]+)$ ]]; then
+      printf '%s\n' "${BASH_REMATCH[1]}"
+    fi
+  done || true
+}
+
+discover_listener_pids() {
+  if have ss; then
+    discover_listener_pids_with_ss
+  fi
+
+  if have lsof; then
+    discover_listener_pids_with_lsof
+  fi
+}
+
+process_group_exists() {
+  local pgid="$1"
+
+  kill -0 -- "-$pgid" 2>/dev/null
+}
+
+if ! have ss && ! have lsof; then
+  echo "kds requires ss (iproute2) or lsof to discover TCP listeners; neither was found." >&2
+  exit 1
+fi
+
+mapfile -t listener_pids < <(discover_listener_pids | sort -u)
 
 if (( ${#listener_pids[@]} == 0 )); then
   echo "No TCP listeners found."
   exit 0
 fi
 
-declare -A seen_pgids=()
+declare -A seen_targets=()
+declare -A terminated_pgids=()
+declare -A terminated_pids=()
 matched=0
+current_pgid="$(pgid_for_pid "$$")"
 
 for pid in "${listener_pids[@]}"; do
   pid_exists "$pid" || continue
@@ -146,16 +203,29 @@ for pid in "${listener_pids[@]}"; do
   pgid="$(pgid_for_pid "$pid")"
   [[ -n "$pgid" ]] || continue
 
-  if [[ -n "${seen_pgids[$pgid]:-}" ]]; then
+  kill_mode="pgid"
+  target_key="pgid:$pgid"
+  if [[ -n "$current_pgid" && "$pgid" == "$current_pgid" ]]; then
+    kill_mode="pid"
+    target_key="pid:$pid"
+  fi
+
+  if [[ -n "${seen_targets[$target_key]:-}" ]]; then
     continue
   fi
 
-  seen_pgids[$pgid]=1
+  seen_targets[$target_key]=1
   matched=1
-  print_match "$pid" "$pgid" "$(command_for_pid "$pid")"
+  print_match "$pid" "$pgid" "$(command_for_pid "$pid")" "$kill_mode"
 
   if (( ! dry_run )); then
-    kill -TERM -- "-$pgid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    if [[ "$kill_mode" == "pgid" ]]; then
+      terminated_pgids[$pgid]=1
+      kill -TERM -- "-$pgid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    else
+      terminated_pids[$pid]=1
+      kill -TERM "$pid" 2>/dev/null || true
+    fi
   fi
 done
 
@@ -170,9 +240,16 @@ fi
 
 sleep 2
 
-for pgid in "${!seen_pgids[@]}"; do
-  if ps -g "$pgid" -o pid= >/dev/null 2>&1; then
+for pgid in "${!terminated_pgids[@]}"; do
+  if process_group_exists "$pgid"; then
     printf 'still running after TERM, sending KILL to pgid=%s\n' "$pgid" >&2
     kill -KILL -- "-$pgid" 2>/dev/null || true
+  fi
+done
+
+for pid in "${!terminated_pids[@]}"; do
+  if pid_exists "$pid"; then
+    printf 'still running after TERM, sending KILL to pid=%s\n' "$pid" >&2
+    kill -KILL "$pid" 2>/dev/null || true
   fi
 done
