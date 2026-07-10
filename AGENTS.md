@@ -17,8 +17,7 @@ kds
 
 Only run `kds` when the sole dev server up is the one you (the agent) started
 in this session. If a preview (`kds --dry-run`) shows other dev servers that
-you did not start, stop and ask the user before killing anything — do not
-assume those are yours to stop.
+you did not start, stop and ask the user before killing anything.
 
 `kds` targets host dev-server listeners such as `bun`, `npm`, `pnpm`, `yarn`,
 `vite`, `next dev`, `turbo dev`, `wrangler dev`, and `workerd`. It is designed
