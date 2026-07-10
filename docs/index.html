@@ -80,7 +80,7 @@
   .install pre {
     flex: 1; padding: 15px 18px;
     font-family: var(--mono); font-size: 13.5px; line-height: 1.5;
-    white-space: pre-wrap; word-break: break-all; display: flex; align-items: center;
+    white-space: pre-wrap; overflow-wrap: anywhere; display: flex; align-items: center;
   }
   .install .p { color: var(--red-bright); user-select: none; margin-right: 10px; }
   .copy-btn {
@@ -238,7 +238,7 @@
         expedition through your process table, your agent just runs <strong>kds</strong>.
       </p>
       <div class="install">
-        <pre><span class="p">$</span><code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/zanellig/kds/main/install.sh | bash</code></pre>
+        <pre><span class="p">$</span><code id="install-cmd">curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>zanellig/kds/<wbr>main/install.sh | bash</code></pre>
         <button class="copy-btn" id="copy" aria-label="Copy install command">
           <span id="copy-label">copy</span>
         </button>
