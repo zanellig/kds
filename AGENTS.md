@@ -15,6 +15,11 @@ Run the command directly when the user clearly wants matching dev servers stoppe
 kds
 ```
 
+Only run `kds` when the sole dev server up is the one you (the agent) started
+in this session. If a preview (`kds --dry-run`) shows other dev servers that
+you did not start, stop and ask the user before killing anything — do not
+assume those are yours to stop.
+
 `kds` targets host dev-server listeners such as `bun`, `npm`, `pnpm`, `yarn`,
 `vite`, `next dev`, `turbo dev`, `wrangler dev`, and `workerd`. It is designed
 to skip Docker/container-owned processes and actual Electron/Code listener
