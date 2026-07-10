@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KDS — Kill Dev Servers</title>
+<meta name="description" content="A tiny zero-dependency bash CLI that kills the leftover JS dev servers your coding agent leaves running — in one word, without touching Docker or your editor.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta property="og:title" content="KDS — Kill Dev Servers">
+<meta property="og:description" content="Your agent burns hundreds of tokens hunting rogue dev servers. kds does it in one.">
+<meta property="og:image" content="https://zanellig.github.io/kds/assets/og.png">
+<meta property="og:url" content="https://zanellig.github.io/kds/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --bg-raised: #121216;
+    --line: #26262c;
+    --fg: #f2f2f4;
+    --fg-dim: #9a9aa4;
+    --red: #e02128;
+    --red-bright: #ff3b41;
+    --amber: #e8b33c;
+    --green: #4fc26e;
+    --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    line-height: 1.6;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 72px 0 56px; position: relative; overflow: hidden; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--red-bright);
+    border: 1px solid rgba(224,33,40,0.4); border-radius: 999px;
+    padding: 5px 14px; margin-bottom: 26px;
+    background: rgba(224,33,40,0.06);
+  }
+  .wordmark { width: 200px; max-width: 55%; height: auto; display: block; margin-bottom: 22px; }
+  h1 {
+    font-size: clamp(28px, 4.4vw, 44px);
+    line-height: 1.14; font-weight: 800; letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+  h1 .accent { color: var(--red-bright); }
+  .kicker {
+    font-size: clamp(22px, 3.2vw, 32px); font-weight: 800;
+    letter-spacing: -0.02em; margin-bottom: 22px;
+  }
+  .kicker code { font-family: var(--mono); font-size: 0.88em; }
+  .sub { color: var(--fg-dim); max-width: 54ch; margin-bottom: 34px; font-size: 17px; }
+  .sub strong { color: var(--fg); font-weight: 600; }
+
+  .install {
+    display: flex; align-items: stretch; gap: 0;
+    background: var(--bg-raised); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; max-width: 640px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .install pre {
+    flex: 1; padding: 15px 18px;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-all; display: flex; align-items: center;
+  }
+  .install .p { color: var(--red-bright); user-select: none; margin-right: 10px; }
+  .copy-btn {
+    border: none; border-left: 1px solid var(--line);
+    background: transparent; color: var(--fg-dim);
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em;
+    padding: 0 20px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: color .15s, background .15s;
+  }
+  .copy-btn:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
+  .copy-btn.done { color: var(--green); }
+  .hero-links { margin-top: 22px; display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .gh-link {
+    color: var(--fg); text-decoration: none; font-weight: 600; font-size: 15px;
+    display: inline-flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 18px;
+    background: var(--bg-raised); transition: border-color .15s, transform .15s;
+  }
+  .gh-link:hover { border-color: var(--fg-dim); transform: translateY(-1px); }
+  .gh-link svg { width: 18px; height: 18px; fill: currentColor; }
+  .hero-note { font-family: var(--mono); font-size: 12px; color: var(--fg-dim); }
+
+  .mascot-box { position: relative; display: flex; justify-content: center; }
+  .mascot-box::before {
+    content: ""; position: absolute; inset: -10%;
+    background: radial-gradient(closest-side, rgba(224,33,40,0.22), transparent 72%);
+    z-index: 0;
+  }
+  .mascot {
+    position: relative; z-index: 1; width: 100%; max-width: 330px; height: auto;
+    filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.5)) drop-shadow(0 24px 50px rgba(0,0,0,0.7));
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  .sec-label {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--red-bright); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-label::before {
+    content: ""; width: 22px; height: 22px; flex: none;
+    background: no-repeat center / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ff3b41" stroke-width="2"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="%23ff3b41" stroke="none"/><line x1="12" y1="1" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="23"/><line x1="1" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="23" y2="12"/></svg>');
+  }
+  h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 34px; }
+
+  /* ---------- terminal ---------- */
+  .term {
+    background: #0d0d10; border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    max-width: 860px;
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 16px; border-bottom: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+  }
+  .term-bar i { width: 11px; height: 11px; border-radius: 50%; background: #333; }
+  .term-bar i:first-child { background: rgba(224,33,40,0.8); }
+  .term-bar span {
+    margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--fg-dim);
+  }
+  .term-body {
+    padding: 20px 22px; font-family: var(--mono); font-size: 13.5px;
+    line-height: 1.75; min-height: 300px; overflow-x: auto;
+  }
+  .term-body .line { white-space: pre; display: none; }
+  .term-body .line.on { display: block; }
+  .prompt { color: var(--red-bright); }
+  .t-would { color: var(--amber); }
+  .t-stop { color: var(--red-bright); }
+  .t-dim { color: var(--fg-dim); }
+  .t-ok { color: var(--green); }
+  .cursor {
+    display: inline-block; width: 8px; height: 15px; vertical-align: -2px;
+    background: var(--fg); animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- kills / spares ---------- */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--line);
+    border-radius: 12px; padding: 28px;
+  }
+  .card.kill { border-top: 3px solid var(--red); }
+  .card.spare { border-top: 3px solid #3a3a42; }
+  .card h3 {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.16em;
+    text-transform: uppercase; margin-bottom: 18px;
+  }
+  .card.kill h3 { color: var(--red-bright); }
+  .card.spare h3 { color: var(--fg-dim); }
+  .card ul { list-style: none; }
+  .card li {
+    padding: 7px 0; display: flex; gap: 12px; align-items: baseline;
+    font-size: 15px; border-bottom: 1px dashed rgba(255,255,255,0.06);
+  }
+  .card li:last-child { border-bottom: none; }
+  .card li::before { font-family: var(--mono); flex: none; }
+  .card.kill li::before { content: "✕"; color: var(--red-bright); }
+  .card.spare li::before { content: "●"; color: var(--green); font-size: 10px; }
+  .card code { font-family: var(--mono); font-size: 0.92em; color: var(--fg); }
+  .card li span { color: var(--fg-dim); }
+
+  .safety {
+    margin-top: 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+  }
+  .safety div {
+    border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+    background: rgba(255,255,255,0.015); font-size: 14px; color: var(--fg-dim);
+  }
+  .safety code { font-family: var(--mono); color: var(--fg); font-size: 0.92em; }
+  .safety b { color: var(--fg); display: block; margin-bottom: 4px; font-size: 13px;
+    font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--line); padding: 40px 0 56px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  footer .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+  footer a { color: var(--fg); text-decoration: none; font-weight: 600; }
+  footer a:hover { color: var(--red-bright); }
+  footer .meta { font-family: var(--mono); font-size: 12.5px; color: var(--fg-dim); }
+
+  @media (max-width: 760px) {
+    .hero { padding-top: 48px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+    .mascot-box { order: -1; }
+    .mascot { max-width: 200px; }
+    .cols, .safety { grid-template-columns: 1fr; }
+    .term-body { min-height: 0; font-size: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .cursor { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="tag">agent-aware process cleanup</span>
+      <img class="wordmark" src="assets/wordmark.png" alt="KDS" width="600" height="234">
+      <h1>Your agent burns hundreds of tokens hunting rogue dev servers.</h1>
+      <p class="kicker"><code>kds</code> does it in <span style="color:var(--red-bright)">one</span>.</p>
+      <p class="sub">
+        A tiny, zero-dependency bash CLI that finds and kills leftover JS dev servers —
+        vite, next, bun, wrangler &amp; friends — <strong>without touching Docker or your
+        editor</strong>. The installer drops a one-line instruction into your agent files,
+        so instead of an <code style="font-family:var(--mono)">ss</code>/<code style="font-family:var(--mono)">ps</code>/<code style="font-family:var(--mono)">kill</code>
+        expedition through your process table, your agent just runs <strong>kds</strong>.
+      </p>
+      <div class="install">
+        <pre><span class="p">$</span><code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/zanellig/kds/main/install.sh | bash</code></pre>
+        <button class="copy-btn" id="copy" aria-label="Copy install command">
+          <span id="copy-label">copy</span>
+        </button>
+      </div>
+      <div class="hero-links">
+        <a class="gh-link" href="https://github.com/zanellig/kds">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          Star on GitHub
+        </a>
+        <span class="hero-note">linux · bash 4+ · no runtime deps</span>
+      </div>
+    </div>
+    <div class="mascot-box">
+      <img class="mascot" src="assets/mascot.png" alt="KDS mascot — a masked operative with a red crosshair eyepiece" width="424" height="640">
+    </div>
+  </div>
+</header>
+
+<section id="demo">
+  <div class="wrap">
+    <p class="sec-label">see it work</p>
+    <h2>Preview the kill list. Then pull the trigger.</h2>
+    <div class="term" id="term">
+      <div class="term-bar"><i></i><i></i><i></i><span>~/work — zsh</span></div>
+      <div class="term-body" id="term-body" aria-live="polite">
+        <div class="line on"><span class="prompt">$</span> <span id="typed"></span><span class="cursor" id="cur"></span></div>
+        <div class="line t-would">would stop: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite</div>
+        <div class="line t-would">would stop: pid=51877 pgid=51877 cmd=next dev --turbopack</div>
+        <div class="line t-would">would stop: pid=52432 pgid=52432 cmd=bun run dev</div>
+        <div class="line"><span class="prompt">$</span> kds</div>
+        <div class="line t-stop">stopping: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite</div>
+        <div class="line t-stop">stopping: pid=51877 pgid=51877 cmd=next dev --turbopack</div>
+        <div class="line t-stop">stopping: pid=52432 pgid=52432 cmd=bun run dev</div>
+        <div class="line"><span class="prompt">$</span> kds</div>
+        <div class="line t-ok">No matching host dev servers found.</div>
+        <div class="line t-dim">// clean. every time.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="targets">
+  <div class="wrap">
+    <p class="sec-label">rules of engagement</p>
+    <h2>Kills the right things. Spares everything else.</h2>
+    <div class="cols">
+      <div class="card kill">
+        <h3>Kill list</h3>
+        <ul>
+          <li><code>bun</code> / <code>npm</code> / <code>pnpm</code> / <code>yarn</code>&nbsp;<span>running dev</span></li>
+          <li><code>vite</code></li>
+          <li><code>next dev</code></li>
+          <li><code>turbo … dev</code></li>
+          <li><code>wrangler dev</code></li>
+          <li><code>workerd</code></li>
+        </ul>
+      </div>
+      <div class="card spare">
+        <h3>Protected</h3>
+        <ul>
+          <li><span>Docker &amp; container-owned processes</span></li>
+          <li><span>Electron / VS Code listener processes</span></li>
+          <li><span>Databases, ssh, and everything else on your box</span></li>
+          <li><span>Only TCP listeners that look like host dev servers match</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="safety">
+      <div><b>Preview first</b><code>kds --dry-run</code> prints the kill list without touching a single process.</div>
+      <div><b>No orphans</b>Kills whole process groups, so dev-server children don't linger and squat the port.</div>
+      <div><b>Graceful, then not</b>Sends <code>TERM</code>, waits 2 seconds, then <code>KILL</code>s anything still standing.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <a href="https://github.com/zanellig/kds">github.com/zanellig/kds</a>
+    <span class="meta">KDS — Kill Dev Servers · Linux · Bash 4+</span>
+  </div>
+</footer>
+
+<script>
+  // copy button
+  const cmd = document.getElementById('install-cmd').textContent;
+  const btn = document.getElementById('copy');
+  const label = document.getElementById('copy-label');
+  btn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(cmd); }
+    catch {
+      const r = document.createRange();
+      r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    label.textContent = 'copied ✓'; btn.classList.add('done');
+    setTimeout(() => { label.textContent = 'copy'; btn.classList.remove('done'); }, 1800);
+  });
+
+  // terminal animation
+  const lines = [...document.querySelectorAll('#term-body .line')];
+  const typed = document.getElementById('typed');
+  const cur = document.getElementById('cur');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function play() {
+    const cmdText = 'kds --dry-run';
+    for (const ch of cmdText) { typed.textContent += ch; await sleep(55); }
+    await sleep(450);
+    cur.remove();
+    for (const [i, el] of lines.slice(1).entries()) {
+      el.classList.add('on');
+      await sleep(el.textContent.startsWith('$') || el.querySelector('.prompt') ? 700 : 170);
+      if (i === 2 || i === 6) await sleep(400);
+    }
+  }
+
+  function showAll() {
+    typed.textContent = 'kds --dry-run'; cur.remove();
+    lines.forEach(l => l.classList.add('on'));
+  }
+
+  if (reduced) { showAll(); }
+  else {
+    let started = false;
+    new IntersectionObserver((entries, obs) => {
+      if (entries[0].isIntersecting && !started) { started = true; obs.disconnect(); play(); }
+    }, { threshold: 0.35 }).observe(document.getElementById('term'));
+  }
+</script>
+</body>
+</html>
