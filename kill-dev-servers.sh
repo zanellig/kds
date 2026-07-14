@@ -4,14 +4,15 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: kill-dev-servers.sh [--dry-run|-n]
+Usage: kill-dev-servers.sh [--dry-run|-n] [--pretty]
        kill-dev-servers.sh [--pid PID|-p PID]
 
 Stops local development servers that are listening on TCP ports.
 
 With no arguments, stops every matching server. --dry-run lists numbered
-candidates and the command to stop each one. --pid stops only the current
-matching candidate with that PID.
+candidates and the command to stop each one. --pretty adds a human-readable
+process table to --dry-run. --pid stops only the current matching candidate
+with that PID.
 
 Matches common host dev processes such as bun/npm/pnpm/yarn dev, vite,
 next dev, turbo dev, wrangler dev, and workerd. Skips Docker/container-owned
@@ -20,12 +21,17 @@ EOF
 }
 
 dry_run=0
+pretty=0
 target_pid=""
 
 while (( $# )); do
   case "$1" in
     --dry-run|-n)
       dry_run=1
+      shift
+      ;;
+    --pretty)
+      pretty=1
       shift
       ;;
     --pid|-p)
@@ -52,6 +58,11 @@ while (( $# )); do
       ;;
   esac
 done
+
+if (( pretty )) && (( ! dry_run )); then
+  echo "--pretty requires --dry-run." >&2
+  exit 2
+fi
 
 if (( dry_run )) && [[ -n "$target_pid" ]]; then
   echo "--dry-run cannot be combined with --pid." >&2
@@ -167,36 +178,127 @@ print_candidate() {
   fi
 }
 
-discover_listener_pids_with_ss() {
+print_pretty_candidates() {
+  local index
+  local pid
+  local metadata
+  local type
+  local elapsed
+  local rss
+  local cpu
+  local bindings
+  local cwd
+  local stop
+  local width_type=4
+  local width_elapsed=7
+  local width_rss=3
+  local width_cpu=3
+  local width_bind=4
+  local width_cwd=3
+  local -a types=()
+  local -a elapsed_times=()
+  local -a rss_values=()
+  local -a cpu_values=()
+  local -a binding_values=()
+  local -a cwd_values=()
+  local -a stop_values=()
+
+  for index in "${!candidate_pids[@]}"; do
+    pid="${candidate_pids[$index]}"
+    metadata="$(ps -p "$pid" -o comm= -o etime= -o rss= -o %cpu= 2>/dev/null || true)"
+    type=""
+    elapsed=""
+    rss=""
+    cpu=""
+    read -r type elapsed rss cpu <<<"$metadata"
+
+    type="${type:--}"
+    elapsed="${elapsed:--}"
+    if [[ "$rss" =~ ^[0-9]+$ ]]; then
+      if (( rss < 1024 )); then
+        rss="${rss} KiB"
+      else
+        rss="$(((rss + 512) / 1024)) MiB"
+      fi
+    else
+      rss="-"
+    fi
+    if [[ -n "$cpu" ]]; then
+      cpu="${cpu}%"
+    else
+      cpu="-"
+    fi
+
+    bindings="${candidate_bindings[$index]:--}"
+    bindings="${bindings//$'\n'/, }"
+    cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
+    cwd="${cwd:--}"
+    stop="kds --pid $pid"
+
+    types+=("$type")
+    elapsed_times+=("$elapsed")
+    rss_values+=("$rss")
+    cpu_values+=("$cpu")
+    binding_values+=("$bindings")
+    cwd_values+=("$cwd")
+    stop_values+=("$stop")
+
+    (( ${#type} > width_type )) && width_type=${#type}
+    (( ${#elapsed} > width_elapsed )) && width_elapsed=${#elapsed}
+    (( ${#rss} > width_rss )) && width_rss=${#rss}
+    (( ${#cpu} > width_cpu )) && width_cpu=${#cpu}
+    (( ${#bindings} > width_bind )) && width_bind=${#bindings}
+    (( ${#cwd} > width_cwd )) && width_cwd=${#cwd}
+  done
+
+  printf '%-*s  %-*s  %*s  %*s  %-*s  %-*s  %s\n' \
+    "$width_type" TYPE "$width_elapsed" ELAPSED "$width_rss" RSS \
+    "$width_cpu" CPU "$width_bind" BIND "$width_cwd" CWD STOP
+  for index in "${!candidate_pids[@]}"; do
+    printf '%-*s  %-*s  %*s  %*s  %-*s  %-*s  %s\n' \
+      "$width_type" "${types[$index]}" "$width_elapsed" "${elapsed_times[$index]}" \
+      "$width_rss" "${rss_values[$index]}" "$width_cpu" "${cpu_values[$index]}" \
+      "$width_bind" "${binding_values[$index]}" "$width_cwd" "${cwd_values[$index]}" \
+      "${stop_values[$index]}"
+  done
+}
+
+discover_listeners_with_ss() {
   local line
+  local endpoint
   local rest
 
   ss -H -ltnp 2>/dev/null | while IFS= read -r line; do
+    read -r _ _ _ endpoint _ _ <<<"$line"
+    [[ -n "$endpoint" ]] || continue
     rest="$line"
     while [[ "$rest" =~ pid=([0-9]+) ]]; do
-      printf '%s\n' "${BASH_REMATCH[1]}"
+      printf '%s\t%s\n' "${BASH_REMATCH[1]}" "$endpoint"
       rest="${rest#*pid=${BASH_REMATCH[1]}}"
     done
   done || true
 }
 
-discover_listener_pids_with_lsof() {
+discover_listeners_with_lsof() {
   local line
+  local pid=""
 
-  lsof -nP -iTCP -sTCP:LISTEN -Fp 2>/dev/null | while IFS= read -r line; do
+  lsof -nP -iTCP -sTCP:LISTEN -Fpn 2>/dev/null | while IFS= read -r line; do
     if [[ "$line" =~ ^p([0-9]+)$ ]]; then
-      printf '%s\n' "${BASH_REMATCH[1]}"
+      pid="${BASH_REMATCH[1]}"
+    elif [[ -n "$pid" && "$line" == n* && -n "${line:1}" ]]; then
+      printf '%s\t%s\n' "$pid" "${line:1}"
     fi
   done || true
 }
 
-discover_listener_pids() {
+discover_listeners() {
   if have ss; then
-    discover_listener_pids_with_ss
+    discover_listeners_with_ss
   fi
 
   if have lsof; then
-    discover_listener_pids_with_lsof
+    discover_listeners_with_lsof
   fi
 }
 
@@ -212,12 +314,16 @@ collect_candidates() {
   local kill_mode
   local target_key
   local current_pgid
-  declare -A seen_targets=()
+  local candidate_index
+  local binding
+  declare -A target_indices=()
+  declare -A seen_bindings=()
 
   candidate_pids=()
   candidate_pgids=()
   candidate_commands=()
   candidate_modes=()
+  candidate_bindings=()
   current_pgid="$(pgid_for_pid "$$")"
 
   for pid in "${listener_pids[@]}"; do
@@ -237,12 +343,27 @@ collect_candidates() {
       target_key="pid:$pid"
     fi
 
-    [[ -z "${seen_targets[$target_key]:-}" ]] || continue
-    seen_targets[$target_key]=1
-    candidate_pids+=("$pid")
-    candidate_pgids+=("$pgid")
-    candidate_commands+=("$(command_for_pid "$pid")")
-    candidate_modes+=("$kill_mode")
+    if [[ -n "${target_indices[$target_key]:-}" ]]; then
+      candidate_index="$((target_indices[$target_key] - 1))"
+    else
+      candidate_index="${#candidate_pids[@]}"
+      target_indices[$target_key]="$((candidate_index + 1))"
+      candidate_pids+=("$pid")
+      candidate_pgids+=("$pgid")
+      candidate_commands+=("$(command_for_pid "$pid")")
+      candidate_modes+=("$kill_mode")
+      candidate_bindings+=("")
+    fi
+
+    while IFS= read -r binding; do
+      [[ -n "$binding" ]] || continue
+      [[ -z "${seen_bindings["$target_key|$binding"]:-}" ]] || continue
+      seen_bindings["$target_key|$binding"]=1
+      if [[ -n "${candidate_bindings[$candidate_index]}" ]]; then
+        candidate_bindings[$candidate_index]+=$'\n'
+      fi
+      candidate_bindings[$candidate_index]+="$binding"
+    done <<<"${listener_bindings_by_pid[$pid]:-}"
   done
 }
 
@@ -251,12 +372,24 @@ if ! have ss && ! have lsof; then
   exit 1
 fi
 
-mapfile -t listener_pids < <(discover_listener_pids | sort -un)
+declare -a listener_pids=()
+declare -A listener_bindings_by_pid=()
+while IFS=$'\t' read -r pid binding; do
+  [[ -n "$pid" && -n "$binding" ]] || continue
+  if [[ -z "${listener_bindings_by_pid[$pid]:-}" ]]; then
+    listener_pids+=("$pid")
+    listener_bindings_by_pid[$pid]="$binding"
+  else
+    listener_bindings_by_pid[$pid]+=$'\n'
+    listener_bindings_by_pid[$pid]+="$binding"
+  fi
+done < <(discover_listeners | sort -k1,1n -k2,2 -u)
 
 declare -a candidate_pids=()
 declare -a candidate_pgids=()
 declare -a candidate_commands=()
 declare -a candidate_modes=()
+declare -a candidate_bindings=()
 collect_candidates
 
 if (( dry_run )); then
@@ -269,9 +402,13 @@ if (( dry_run )); then
     exit 0
   fi
 
-  for index in "${!candidate_pids[@]}"; do
-    print_candidate "$((index + 1))" "${candidate_pids[$index]}" "${candidate_pgids[$index]}" "${candidate_commands[$index]}" "${candidate_modes[$index]}"
-  done
+  if (( pretty )); then
+    print_pretty_candidates
+  else
+    for index in "${!candidate_pids[@]}"; do
+      print_candidate "$((index + 1))" "${candidate_pids[$index]}" "${candidate_pgids[$index]}" "${candidate_commands[$index]}" "${candidate_modes[$index]}"
+    done
+  fi
   exit 0
 fi
 

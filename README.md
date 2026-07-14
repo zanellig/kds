@@ -109,6 +109,21 @@ kds --dry-run
 # candidate 2: pid=51877 pgid=51877 cmd=next dev --turbopack | stop with: kds --pid 51877
 ```
 
+List the same candidates in a human-readable table:
+
+```sh
+kds --dry-run --pretty
+# TYPE  ELAPSED  RSS     CPU   BIND              CWD        STOP
+# node  01:23    64 MiB  1.5%  127.0.0.1:3000    /work/app  kds --pid 48213
+# bun   12:09     2 MiB  0.0%  *:8081, [::1]:8081  /work/api  kds --pid 51877
+```
+
+`TYPE`, elapsed time, RSS memory, CPU, and working directory describe the
+listed listener process. `BIND` shows its unique TCP bind addresses and ports;
+multiple bindings are comma-separated. Metadata that disappears while KDS is
+inspecting a process is shown as `-`. Plain `--dry-run` remains the compact,
+script-friendly format.
+
 Stop one listed server and its process group:
 
 ```sh
