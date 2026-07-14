@@ -3,21 +3,22 @@
 
 Use `kds` when the user asks to stop, clear, or kill local development servers.
 
-Run a preview first when the request is exploratory or safety-sensitive:
+Preview matching servers first:
 
 ```sh
 kds --dry-run
 ```
 
-Run the command directly when the user clearly wants matching dev servers stopped:
+The preview prints a `kds --pid PID` command for each candidate. You may run
+that targeted command without asking only when you started the server in this
+session. Ask the user before stopping any other candidate.
+
+Run bare `kds` only when the user explicitly wants every listed dev server
+stopped:
 
 ```sh
 kds
 ```
-
-Only run `kds` when the sole dev server up is the one you (the agent) started
-in this session. If a preview (`kds --dry-run`) shows other dev servers that
-you did not start, stop and ask the user before killing anything.
 
 `kds` targets host dev-server listeners such as `bun`, `npm`, `pnpm`, `yarn`,
 `vite`, `next dev`, `turbo dev`, `wrangler dev`, and `workerd`. It is designed

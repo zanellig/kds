@@ -101,13 +101,25 @@ alias kds="/path/to/kill-dev-servers.sh"
 
 ## Usage
 
-Preview what would be stopped:
+List matching dev servers without stopping them:
 
 ```sh
 kds --dry-run
+# candidate 1: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite | stop with: kds --pid 48213
+# candidate 2: pid=51877 pgid=51877 cmd=next dev --turbopack | stop with: kds --pid 51877
 ```
 
-Stop matching dev servers:
+Stop one listed server and its process group:
+
+```sh
+kds --pid 48213
+```
+
+`-n` aliases `--dry-run`, and `-p` aliases `--pid`. Targeted stopping
+rediscovers the listeners and refuses the PID if it is no longer a current KDS
+candidate.
+
+Stop every matching dev server:
 
 ```sh
 kds
@@ -132,5 +144,6 @@ Use:
 
 ```sh
 kds --dry-run
+kds --pid PID
 kds
 ```

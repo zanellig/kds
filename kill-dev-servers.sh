@@ -5,8 +5,13 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage: kill-dev-servers.sh [--dry-run|-n]
+       kill-dev-servers.sh [--pid PID|-p PID]
 
 Stops local development servers that are listening on TCP ports.
+
+With no arguments, stops every matching server. --dry-run lists numbered
+candidates and the command to stop each one. --pid stops only the current
+matching candidate with that PID.
 
 Matches common host dev processes such as bun/npm/pnpm/yarn dev, vite,
 next dev, turbo dev, wrangler dev, and workerd. Skips Docker/container-owned
@@ -15,23 +20,43 @@ EOF
 }
 
 dry_run=0
+target_pid=""
 
-for arg in "$@"; do
-  case "$arg" in
+while (( $# )); do
+  case "$1" in
     --dry-run|-n)
       dry_run=1
+      shift
+      ;;
+    --pid|-p)
+      if [[ -n "$target_pid" ]]; then
+        echo "PID may only be specified once." >&2
+        exit 2
+      fi
+      if (( $# < 2 )) || [[ ! "$2" =~ ^[1-9][0-9]*$ ]]; then
+        echo "$1 requires a positive numeric PID." >&2
+        usage >&2
+        exit 2
+      fi
+      target_pid="$2"
+      shift 2
       ;;
     --help|-h)
       usage
       exit 0
       ;;
     *)
-      echo "Unknown argument: $arg" >&2
+      echo "Unknown argument: $1" >&2
       usage >&2
       exit 2
       ;;
   esac
 done
+
+if (( dry_run )) && [[ -n "$target_pid" ]]; then
+  echo "--dry-run cannot be combined with --pid." >&2
+  exit 2
+fi
 
 have() {
   command -v "$1" >/dev/null 2>&1
@@ -121,18 +146,24 @@ print_match() {
   local cmd="$3"
   local mode="${4:-pgid}"
 
-  if (( dry_run )); then
-    if [[ "$mode" == "pid" ]]; then
-      printf 'would stop: pid=%s pgid=%s mode=pid cmd=%s\n' "$pid" "$pgid" "$cmd"
-    else
-      printf 'would stop: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
-    fi
+  if [[ "$mode" == "pid" ]]; then
+    printf 'stopping: pid=%s pgid=%s mode=pid cmd=%s\n' "$pid" "$pgid" "$cmd"
   else
-    if [[ "$mode" == "pid" ]]; then
-      printf 'stopping: pid=%s pgid=%s mode=pid cmd=%s\n' "$pid" "$pgid" "$cmd"
-    else
-      printf 'stopping: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
-    fi
+    printf 'stopping: pid=%s pgid=%s cmd=%s\n' "$pid" "$pgid" "$cmd"
+  fi
+}
+
+print_candidate() {
+  local number="$1"
+  local pid="$2"
+  local pgid="$3"
+  local cmd="$4"
+  local mode="${5:-pgid}"
+
+  if [[ "$mode" == "pid" ]]; then
+    printf 'candidate %s: pid=%s pgid=%s mode=pid cmd=%s | stop with: kds --pid %s\n' "$number" "$pid" "$pgid" "$cmd" "$pid"
+  else
+    printf 'candidate %s: pid=%s pgid=%s cmd=%s | stop with: kds --pid %s\n' "$number" "$pid" "$pgid" "$cmd" "$pid"
   fi
 }
 
@@ -175,68 +206,118 @@ process_group_exists() {
   kill -0 -- "-$pgid" 2>/dev/null
 }
 
+collect_candidates() {
+  local pid
+  local pgid
+  local kill_mode
+  local target_key
+  local current_pgid
+  declare -A seen_targets=()
+
+  candidate_pids=()
+  candidate_pgids=()
+  candidate_commands=()
+  candidate_modes=()
+  current_pgid="$(pgid_for_pid "$$")"
+
+  for pid in "${listener_pids[@]}"; do
+    pid_exists "$pid" || continue
+    is_container_pid "$pid" && continue
+    has_container_runtime_ancestor "$pid" && continue
+    is_editor_process "$pid" && continue
+    looks_like_dev_server "$pid" || continue
+
+    pgid="$(pgid_for_pid "$pid")"
+    [[ "$pgid" =~ ^[1-9][0-9]*$ ]] || continue
+
+    kill_mode="pgid"
+    target_key="pgid:$pgid"
+    if [[ -n "$current_pgid" && "$pgid" == "$current_pgid" ]]; then
+      kill_mode="pid"
+      target_key="pid:$pid"
+    fi
+
+    [[ -z "${seen_targets[$target_key]:-}" ]] || continue
+    seen_targets[$target_key]=1
+    candidate_pids+=("$pid")
+    candidate_pgids+=("$pgid")
+    candidate_commands+=("$(command_for_pid "$pid")")
+    candidate_modes+=("$kill_mode")
+  done
+}
+
 if ! have ss && ! have lsof; then
   echo "kds requires ss (iproute2) or lsof to discover TCP listeners; neither was found." >&2
   exit 1
 fi
 
-mapfile -t listener_pids < <(discover_listener_pids | sort -u)
+mapfile -t listener_pids < <(discover_listener_pids | sort -un)
 
-if (( ${#listener_pids[@]} == 0 )); then
-  echo "No TCP listeners found."
-  exit 0
-fi
-
-declare -A seen_targets=()
-declare -A terminated_pgids=()
-declare -A terminated_pids=()
-matched=0
-current_pgid="$(pgid_for_pid "$$")"
-
-for pid in "${listener_pids[@]}"; do
-  pid_exists "$pid" || continue
-  is_container_pid "$pid" && continue
-  has_container_runtime_ancestor "$pid" && continue
-  is_editor_process "$pid" && continue
-  looks_like_dev_server "$pid" || continue
-
-  pgid="$(pgid_for_pid "$pid")"
-  [[ -n "$pgid" ]] || continue
-
-  kill_mode="pgid"
-  target_key="pgid:$pgid"
-  if [[ -n "$current_pgid" && "$pgid" == "$current_pgid" ]]; then
-    kill_mode="pid"
-    target_key="pid:$pid"
-  fi
-
-  if [[ -n "${seen_targets[$target_key]:-}" ]]; then
-    continue
-  fi
-
-  seen_targets[$target_key]=1
-  matched=1
-  print_match "$pid" "$pgid" "$(command_for_pid "$pid")" "$kill_mode"
-
-  if (( ! dry_run )); then
-    if [[ "$kill_mode" == "pgid" ]]; then
-      terminated_pgids[$pgid]=1
-      kill -TERM -- "-$pgid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
-    else
-      terminated_pids[$pid]=1
-      kill -TERM "$pid" 2>/dev/null || true
-    fi
-  fi
-done
-
-if (( ! matched )); then
-  echo "No matching host dev servers found."
-  exit 0
-fi
+declare -a candidate_pids=()
+declare -a candidate_pgids=()
+declare -a candidate_commands=()
+declare -a candidate_modes=()
+collect_candidates
 
 if (( dry_run )); then
+  if (( ${#listener_pids[@]} == 0 )); then
+    echo "No TCP listeners found."
+    exit 0
+  fi
+  if (( ${#candidate_pids[@]} == 0 )); then
+    echo "No matching host dev servers found."
+    exit 0
+  fi
+
+  for index in "${!candidate_pids[@]}"; do
+    print_candidate "$((index + 1))" "${candidate_pids[$index]}" "${candidate_pgids[$index]}" "${candidate_commands[$index]}" "${candidate_modes[$index]}"
+  done
   exit 0
 fi
+
+if [[ -n "$target_pid" ]]; then
+  selected_index=""
+  for index in "${!candidate_pids[@]}"; do
+    if [[ "${candidate_pids[$index]}" == "$target_pid" ]]; then
+      selected_index="$index"
+      break
+    fi
+  done
+
+  if [[ -z "$selected_index" ]]; then
+    printf 'Refusing --pid %s: it is not a current KDS candidate. Run kds --dry-run again.\n' "$target_pid" >&2
+    exit 1
+  fi
+  target_indices=("$selected_index")
+else
+  if (( ${#listener_pids[@]} == 0 )); then
+    echo "No TCP listeners found."
+    exit 0
+  fi
+  if (( ${#candidate_pids[@]} == 0 )); then
+    echo "No matching host dev servers found."
+    exit 0
+  fi
+  target_indices=("${!candidate_pids[@]}")
+fi
+
+declare -A terminated_pgids=()
+declare -A terminated_pids=()
+
+for index in "${target_indices[@]}"; do
+  pid="${candidate_pids[$index]}"
+  pgid="${candidate_pgids[$index]}"
+  kill_mode="${candidate_modes[$index]}"
+  print_match "$pid" "$pgid" "${candidate_commands[$index]}" "$kill_mode"
+
+  if [[ "$kill_mode" == "pgid" ]]; then
+    terminated_pgids[$pgid]=1
+    kill -TERM -- "-$pgid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+  else
+    terminated_pids[$pid]=1
+    kill -TERM "$pid" 2>/dev/null || true
+  fi
+done
 
 sleep 2
 

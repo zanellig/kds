@@ -260,21 +260,20 @@
 <section id="demo">
   <div class="wrap">
     <p class="sec-label">see it work</p>
-    <h2>Preview the kill list. Then pull the trigger.</h2>
+    <h2>Preview the candidates. Then pick your target.</h2>
     <div class="term" id="term">
       <div class="term-bar"><i></i><i></i><i></i><span>~/work — zsh</span></div>
       <div class="term-body" id="term-body" aria-live="polite">
         <div class="line on"><span class="prompt">$</span> <span id="typed"></span><span class="cursor" id="cur"></span></div>
-        <div class="line t-would">would stop: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite</div>
-        <div class="line t-would">would stop: pid=51877 pgid=51877 cmd=next dev --turbopack</div>
-        <div class="line t-would">would stop: pid=52432 pgid=52432 cmd=bun run dev</div>
-        <div class="line"><span class="prompt">$</span> kds</div>
+        <div class="line t-would">candidate 1: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite | stop with: kds --pid 48213</div>
+        <div class="line t-would">candidate 2: pid=51877 pgid=51877 cmd=next dev --turbopack | stop with: kds --pid 51877</div>
+        <div class="line t-would">candidate 3: pid=52432 pgid=52432 cmd=bun run dev | stop with: kds --pid 52432</div>
+        <div class="line"><span class="prompt">$</span> kds --pid 48213</div>
         <div class="line t-stop">stopping: pid=48213 pgid=48213 cmd=node /work/app/node_modules/.bin/vite</div>
-        <div class="line t-stop">stopping: pid=51877 pgid=51877 cmd=next dev --turbopack</div>
-        <div class="line t-stop">stopping: pid=52432 pgid=52432 cmd=bun run dev</div>
-        <div class="line"><span class="prompt">$</span> kds</div>
-        <div class="line t-ok">No matching host dev servers found.</div>
-        <div class="line t-dim">// clean. every time.</div>
+        <div class="line"><span class="prompt">$</span> kds --dry-run</div>
+        <div class="line t-would">candidate 1: pid=51877 pgid=51877 cmd=next dev --turbopack | stop with: kds --pid 51877</div>
+        <div class="line t-would">candidate 2: pid=52432 pgid=52432 cmd=bun run dev | stop with: kds --pid 52432</div>
+        <div class="line t-dim">// one target. no collateral damage.</div>
       </div>
     </div>
   </div>
@@ -307,8 +306,8 @@
       </div>
     </div>
     <div class="safety">
-      <div><b>Preview first</b><code>kds --dry-run</code> prints the kill list without touching a single process.</div>
-      <div><b>No orphans</b>Kills whole process groups, so dev-server children don't linger and squat the port.</div>
+      <div><b>Preview first</b><code>kds --dry-run</code> lists numbered candidates and the exact command to stop one.</div>
+      <div><b>Pick one</b><code>kds --pid PID</code> rechecks the target, then stops its whole process group.</div>
       <div><b>Graceful, then not</b>Sends <code>TERM</code>, waits 2 seconds, then <code>KILL</code>s anything still standing.</div>
     </div>
   </div>
