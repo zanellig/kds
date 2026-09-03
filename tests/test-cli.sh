@@ -99,8 +99,8 @@ fail() {
   exit 1
 }
 
-preview="$($repo_dir/kill-dev-servers.sh --dry-run)"
-short_preview="$($repo_dir/kill-dev-servers.sh -n)"
+preview="$("$repo_dir"/kill-dev-servers.sh --dry-run)"
+short_preview="$("$repo_dir"/kill-dev-servers.sh -n)"
 [[ "$preview" == "$short_preview" ]] || fail '-n differs from --dry-run'
 grep -Eq "candidate [0-9]+: pid=$pid_one pgid=81001 cmd=node /work/one/node_modules/.bin/vite \| stop with: kds --pid $pid_one" <<<"$preview" || fail 'first server is not actionable'
 grep -Eq "candidate [0-9]+: pid=$pid_two pgid=81002 cmd=next dev --turbopack \| stop with: kds --pid $pid_two" <<<"$preview" || fail 'second server is not actionable'
@@ -110,7 +110,7 @@ if grep -Fq "pid=$pid_four" <<<"$preview"; then
 fi
 [[ ! -e "$KILL_LOG" ]] || fail 'dry-run signaled a process'
 
-pretty_preview="$($repo_dir/kill-dev-servers.sh --dry-run --pretty)"
+pretty_preview="$("$repo_dir"/kill-dev-servers.sh --dry-run --pretty)"
 grep -Eq '^TYPE +ELAPSED +RSS +CPU +BIND +CWD +STOP$' <<<"$pretty_preview" || fail 'pretty preview has no header'
 grep -Fq "node  01:23        64 MiB  1.5%  127.0.0.1:3000, [::1]:3001" <<<"$pretty_preview" || fail 'first pretty row lacks process metadata or bindings'
 grep -Fq "/work/one" <<<"$pretty_preview" || fail 'first pretty row lacks cwd'
@@ -120,7 +120,7 @@ grep -Fq "/work/two with spaces" <<<"$pretty_preview" || fail 'second pretty row
 [[ "$(grep -Fo '127.0.0.1:3000' <<<"$pretty_preview" | wc -l)" -eq 1 ]] || fail 'duplicate bindings were not removed'
 [[ ! -e "$KILL_LOG" ]] || fail 'pretty dry-run signaled a process'
 
-missing_preview="$(MISSING_PRETTY_METADATA=1 $repo_dir/kill-dev-servers.sh --dry-run --pretty)"
+missing_preview="$(MISSING_PRETTY_METADATA=1 "$repo_dir"/kill-dev-servers.sh --dry-run --pretty)"
 grep -Eq '^- +- +- +- +' <<<"$missing_preview" || fail 'missing pretty metadata has no fallbacks'
 grep -Fq "kds --pid $pid_one" <<<"$missing_preview" || fail 'missing metadata removed actionable stop command'
 

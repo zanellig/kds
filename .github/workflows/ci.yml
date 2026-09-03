@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  SCRIPTS: kill-dev-servers.sh install.sh tests/test-cli.sh
+
+jobs:
+  test:
+    # The suite spawns real PIDs and reads /proc, so it needs a Linux runner.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check
+        # bash -n only reads its first file argument, so check one at a time.
+        run: for script in $SCRIPTS; do bash -n "$script"; done
+
+      - name: Shellcheck
+        run: shellcheck $SCRIPTS
+
+      - name: CLI tests
+        run: bash tests/test-cli.sh

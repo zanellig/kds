@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-#!/usr/bin/env bash
 set -euo pipefail
 
 usage() {
@@ -276,7 +275,7 @@ discover_listeners_with_ss() {
     rest="$line"
     while [[ "$rest" =~ pid=([0-9]+) ]]; do
       printf '%s\t%s\n' "${BASH_REMATCH[1]}" "$endpoint"
-      rest="${rest#*pid=${BASH_REMATCH[1]}}"
+      rest="${rest#*pid="${BASH_REMATCH[1]}"}"
     done
   done || true
 }
@@ -362,9 +361,9 @@ collect_candidates() {
       [[ -z "${seen_bindings["$target_key|$binding"]:-}" ]] || continue
       seen_bindings["$target_key|$binding"]=1
       if [[ -n "${candidate_bindings[$candidate_index]}" ]]; then
-        candidate_bindings[$candidate_index]+=$'\n'
+        candidate_bindings[candidate_index]+=$'\n'
       fi
-      candidate_bindings[$candidate_index]+="$binding"
+      candidate_bindings[candidate_index]+="$binding"
     done <<<"${listener_bindings_by_pid[$pid]:-}"
   done
 }
@@ -427,7 +426,7 @@ if [[ -n "$target_pid" ]]; then
     printf 'Refusing --pid %s: it is not a current KDS candidate. Run kds --dry-run again.\n' "$target_pid" >&2
     exit 1
   fi
-  target_indices=("$selected_index")
+  selected_indices=("$selected_index")
 else
   if (( ${#listener_pids[@]} == 0 )); then
     echo "No TCP listeners found."
@@ -437,13 +436,13 @@ else
     echo "No matching host dev servers found."
     exit 0
   fi
-  target_indices=("${!candidate_pids[@]}")
+  selected_indices=("${!candidate_pids[@]}")
 fi
 
 declare -A terminated_pgids=()
 declare -A terminated_pids=()
 
-for index in "${target_indices[@]}"; do
+for index in "${selected_indices[@]}"; do
   pid="${candidate_pids[$index]}"
   pgid="${candidate_pgids[$index]}"
   kill_mode="${candidate_modes[$index]}"
