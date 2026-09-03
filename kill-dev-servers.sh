@@ -15,7 +15,7 @@ process table to --dry-run. --pid stops only the current matching candidate
 with that PID.
 
 Matches common host dev processes such as bun/npm/pnpm/yarn dev, vite,
-next dev, turbo dev, wrangler dev, and workerd. Skips Docker/container-owned
+next dev, turbo dev, wrangler dev, workerd, and tsx. Skips Docker/container-owned
 processes and actual Electron/Code listener processes.
 EOF
 }
@@ -148,7 +148,9 @@ looks_like_dev_server() {
     [[ "$cmd" =~ (^|[[:space:]/])next([[:space:]]+dev|$) ]] ||
     [[ "$cmd" =~ (^|[[:space:]/])turbo([[:space:]]|$).*(^|[[:space:]])dev([[:space:]]|$) ]] ||
     [[ "$cmd" =~ (^|[[:space:]/])wrangler([[:space:]]+dev|$) ]] ||
-    [[ "$cmd" =~ (^|[[:space:]/])workerd([[:space:]]|$) ]]
+    [[ "$cmd" =~ (^|[[:space:]/])workerd([[:space:]]|$) ]] ||
+    [[ "$cmd" =~ (^|[[:space:]/])tsx([[:space:]]|$) ]] ||
+    [[ "$cmd" =~ /node_modules/tsx/dist/ ]]
 }
 
 print_match() {

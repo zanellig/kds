@@ -16,6 +16,7 @@ It scans TCP listeners and stops process groups that look like host development 
 - `turbo ... dev`
 - `wrangler dev`
 - `workerd`
+- `tsx` (including the child process it spawns for the actual server)
 
 It skips Docker/container-owned processes and actual Electron/Code listener processes.
 
