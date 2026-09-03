@@ -384,7 +384,7 @@ while IFS=$'\t' read -r pid binding; do
     listener_bindings_by_pid[$pid]+=$'\n'
     listener_bindings_by_pid[$pid]+="$binding"
   fi
-done < <(discover_listeners | sort -k1,1n -k2,2 -u)
+done < <(discover_listeners | LC_ALL=C sort -k1,1n -k2,2 -u)
 
 declare -a candidate_pids=()
 declare -a candidate_pgids=()

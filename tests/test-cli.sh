@@ -115,7 +115,7 @@ grep -Eq '^TYPE +ELAPSED +RSS +CPU +BIND +CWD +STOP$' <<<"$pretty_preview" || fa
 grep -Fq "node  01:23        64 MiB  1.5%  127.0.0.1:3000, [::1]:3001" <<<"$pretty_preview" || fail 'first pretty row lacks process metadata or bindings'
 grep -Fq "/work/one" <<<"$pretty_preview" || fail 'first pretty row lacks cwd'
 grep -Fq "kds --pid $pid_one" <<<"$pretty_preview" || fail 'first pretty row is not actionable'
-grep -Fq "bun   2-03:04:05  512 KiB  0.0%  127.0.0.1:3002, *:3002" <<<"$pretty_preview" || fail 'second pretty row lacks process metadata or bindings'
+grep -Fq "bun   2-03:04:05  512 KiB  0.0%  *:3002, 127.0.0.1:3002" <<<"$pretty_preview" || fail 'second pretty row lacks process metadata or bindings'
 grep -Fq "/work/two with spaces" <<<"$pretty_preview" || fail 'second pretty row lacks cwd'
 [[ "$(grep -Fo '127.0.0.1:3000' <<<"$pretty_preview" | wc -l)" -eq 1 ]] || fail 'duplicate bindings were not removed'
 [[ ! -e "$KILL_LOG" ]] || fail 'pretty dry-run signaled a process'
