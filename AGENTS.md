@@ -21,7 +21,7 @@ kds
 ```
 
 `kds` targets host dev-server listeners such as `bun`, `npm`, `pnpm`, `yarn`,
-`vite`, `next dev`, `turbo dev`, `wrangler dev`, and `workerd`. It is designed
+`vite`, `next dev`, `turbo dev`, `wrangler dev`, `workerd`, and `tsx`. It is designed
 to skip Docker/container-owned processes and actual Electron/Code listener
 processes.
 
