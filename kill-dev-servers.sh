@@ -149,7 +149,8 @@ looks_like_dev_server() {
     [[ "$cmd" =~ (^|[[:space:]/])turbo([[:space:]]|$).*(^|[[:space:]])dev([[:space:]]|$) ]] ||
     [[ "$cmd" =~ (^|[[:space:]/])wrangler([[:space:]]+dev|$) ]] ||
     [[ "$cmd" =~ (^|[[:space:]/])workerd([[:space:]]|$) ]] ||
-    [[ "$cmd" =~ (^|[[:space:]/])tsx([[:space:]/]|$) ]]
+    [[ "$cmd" =~ (^|[[:space:]/])tsx([[:space:]]|$) ]] ||
+    [[ "$cmd" =~ /node_modules/tsx/dist/ ]]
 }
 
 print_match() {
