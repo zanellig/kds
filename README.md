@@ -20,6 +20,22 @@ It scans TCP listeners and stops process groups that look like host development 
 
 It skips Docker/container-owned processes and actual Electron/Code listener processes.
 
+## Why not just `pkill`?
+
+From a real agent session that stopped a `tsx watch dev.ts` server:
+
+<p>
+  <img src="assets/why-not-pkill.png" alt="Agent transcript: pkill -f matched the agent's own shell and killed it before reaching the server, and the tsx watch child had restarted under a new PID. KDS avoids both by matching listening ports, stopping the whole process group, and never stopping its own group." width="760">
+</p>
+
+- `pkill -f "tsx watch dev.ts"` matched the agent's own shell, which died
+  before reaching the server. KDS starts from listening ports, and a shell
+  doesn't listen on one.
+- `tsx watch` runs a parent and a child server that the watcher can restart
+  under a new PID. KDS stops the whole process group, so both go down together.
+- KDS never stops its own process group. If a target shares the caller's group,
+  it stops only that PID.
+
 ## Requirements
 
 - Linux with `/proc`
